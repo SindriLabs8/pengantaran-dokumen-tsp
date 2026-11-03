@@ -5,6 +5,7 @@ Metode  : Brute Force (eksak) + pembanding Nearest Neighbor (heuristik)
 Data    : jarak antar fakultas (meter), dari pengukuran Google Earth
 """
 import itertools
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -74,7 +75,7 @@ def cetak(judul, rute, total):
 # ------------------------------------------------------------------
 # 3. JALANKAN
 # ------------------------------------------------------------------
-START = idx["Teknik"]  # titik awal/akhir, ganti sesuai kebutuhan
+START = idx["Teknik"]
 
 rute_opt, d_opt = tsp_brute_force(START)
 rute_nn, d_nn = tsp_nearest_neighbor(START)
@@ -85,8 +86,6 @@ print(f"Selisih NN vs Optimal: {d_nn - d_opt:,.2f} m")
 
 # ------------------------------------------------------------------
 # 4. PETA SKEMATIK
-# Koordinat tiap gedung diperkirakan dari matriks jarak (Classical MDS),
-# jadi posisi relatifnya mengikuti jarak sebenarnya.
 # ------------------------------------------------------------------
 def classical_mds(D, dim=2):
     m = D.shape[0]
@@ -98,24 +97,20 @@ def classical_mds(D, dim=2):
 
 XY = classical_mds(D)
 
-# Orientasikan peta supaya sesuai posisi di foto satelit:
-# Teknik di kiri, Kedokteran di bawah, FISIP di atas, Kehutanan di kanan.
 jangkar = {"Teknik": (0.0, 0.3), "Kedokteran": (0.55, 0.0),
            "FISIP": (0.45, 1.0), "Kehutanan": (1.0, 0.6)}
 ids = [idx[k] for k in jangkar]
 A = XY[ids]; B = np.array(list(jangkar.values()))
 muA, muB = A.mean(0), B.mean(0)
-U, _, Vt = np.linalg.svd((A - muA).T @ (B - muB))   # rotasi/refleksi terbaik
+U, _, Vt = np.linalg.svd((A - muA).T @ (B - muB))
 XY = (XY - muA) @ (U @ Vt) * 1.0 + muB
 
 fig, ax = plt.subplots(figsize=(10, 8))
 
-# semua jalur (abu-abu tipis) + label jarak
 for i in range(n):
     for j in range(i + 1, n):
         ax.plot(*zip(XY[i], XY[j]), color="lightgray", lw=0.8, zorder=1)
 
-# rute optimal
 urut = rute_opt + [rute_opt[0]]
 for k in range(len(urut) - 1):
     a, b = urut[k], urut[k + 1]
@@ -127,7 +122,6 @@ for k in range(len(urut) - 1):
             ha="center", va="center", zorder=5,
             bbox=dict(boxstyle="round,pad=0.2", fc="white", ec="crimson", lw=0.8))
 
-# titik gedung
 for i, nama in enumerate(nodes):
     warna = "gold" if i == START else "steelblue"
     ax.scatter(*XY[i], s=700, color=warna, edgecolor="black", zorder=4)
@@ -142,5 +136,9 @@ ax.set_title("Rute Optimal Pengantaran Dokumen Antar Fakultas UNTAD (TSP)\n"
 ax.set_aspect("equal")
 ax.axis("off")
 plt.tight_layout()
-plt.savefig("/mnt/user-data/outputs/peta_rute_tsp_untad.png", dpi=200)
-print("Peta disimpan: peta_rute_tsp_untad.png")
+
+output_path = "/mnt/user-data/outputs/peta_rute_tsp_untad.png"
+os.makedirs(os.path.dirname(output_path), exist_ok=True)
+plt.savefig(output_path, dpi=200)
+print(f"Peta berhasil disimpan ke: {output_path}")
+plt.show()
